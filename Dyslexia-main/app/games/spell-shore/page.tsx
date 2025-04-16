@@ -1,30 +1,17 @@
 "use client"
 
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { saveGameData } from "@/lib/game-data"
-
-// Word sets with correct and incorrect spellings
-const WORD_SETS = [
-  { correct: "ocean", incorrect: ["ocen", "osean", "ocian"] },
-  { correct: "beach", incorrect: ["beech", "beatch", "beaach"] },
-  { correct: "island", incorrect: ["iland", "ieland", "ilend"] },
-  { correct: "whale", incorrect: ["wale", "whael", "waile"] },
-  { correct: "dolphin", incorrect: ["dolfin", "dolfen", "dolphyn"] },
-  { correct: "treasure", incorrect: ["tresure", "treasur", "tresur"] },
-  { correct: "coral", incorrect: ["cral", "corral", "corel"] },
-  { correct: "seaweed", incorrect: ["seeweed", "seawed", "seewead"] },
-  { correct: "anchor", incorrect: ["ankor", "ancor", "ancher"] },
-  { correct: "sailor", incorrect: ["sailer", "saylor", "saler"] },
-]
+import { WORD_SETS_BY_AGE, getAgeGroup } from "./word-sets"
 
 export default function SpellShoreGame() {
   const router = useRouter()
   const [currentRound, setCurrentRound] = useState(0)
-  const [totalRounds] = useState(10)
+  const [totalRounds, setTotalRounds] = useState(10)
   const [correctWord, setCorrectWord] = useState("")
   const [options, setOptions] = useState<string[]>([])
   const [isCorrect, setIsCorrect] = useState<boolean | null>(null)
@@ -32,9 +19,30 @@ export default function SpellShoreGame() {
   const [gameStarted, setGameStarted] = useState(false)
   const [gameComplete, setGameComplete] = useState(false)
   const [gameData, setGameData] = useState<any[]>([])
+  const [playerAge, setPlayerAge] = useState<number>(0)
+  const [currentAgeGroup, setCurrentAgeGroup] = useState<string>("")
+  const [failedAttempts, setFailedAttempts] = useState(0)
+  const [hasTriedEasierLevel, setHasTriedEasierLevel] = useState(false)
+  const [shouldSwitchLevel, setShouldSwitchLevel] = useState(false)
 
   const startTimeRef = useRef<number | null>(null)
   const roundStartTimeRef = useRef<number | null>(null)
+
+  useEffect(() => {
+    const playerInfo = localStorage.getItem("playerInfo")
+    if (playerInfo) {
+      const { age } = JSON.parse(playerInfo)
+      setPlayerAge(age)
+      setCurrentAgeGroup(getAgeGroup(age))
+    }
+  }, [])
+
+  useEffect(() => {
+    if (failedAttempts >= 3 && currentRound < 5 && !hasTriedEasierLevel && currentAgeGroup !== "4-7") {
+      setTotalRounds(5)
+      setShouldSwitchLevel(true)
+    }
+  }, [failedAttempts, currentRound, hasTriedEasierLevel, currentAgeGroup])
 
   // Start the game
   const startGame = () => {
@@ -50,10 +58,11 @@ export default function SpellShoreGame() {
 
     // Get random word set
     const usedWords = gameData.map((data) => data.correctWord)
-    const availableWordSets = WORD_SETS.filter((set) => !usedWords.includes(set.correct))
+    const currentWordSets = WORD_SETS_BY_AGE[currentAgeGroup]
+    const availableWordSets = currentWordSets.filter((set) => !usedWords.includes(set.correct))
 
     // If we've used all words, just pick randomly
-    const wordSets = availableWordSets.length > 0 ? availableWordSets : WORD_SETS
+    const wordSets = availableWordSets.length > 0 ? availableWordSets : currentWordSets
 
     const randomIndex = Math.floor(Math.random() * wordSets.length)
     const wordSet = wordSets[randomIndex]
@@ -73,12 +82,28 @@ export default function SpellShoreGame() {
     roundStartTimeRef.current = Date.now()
   }
 
+  const switchToEasierLevel = () => {
+    const newAgeGroup = currentAgeGroup === "12-16" ? "8-11" : "4-7"
+    setCurrentAgeGroup(newAgeGroup)
+    setHasTriedEasierLevel(true)
+    setFailedAttempts(0)
+    setCurrentRound(0)
+    setScore(0)
+    setGameData([])
+    setTotalRounds(5)
+    setupNewRound()
+  }
+
   // Handle word selection
   const handleWordSelect = (word: string) => {
     if (isCorrect !== null) return // Prevent multiple selections
 
     const correct = word === correctWord
     setIsCorrect(correct)
+
+    if (!correct) {
+      setFailedAttempts((prev) => prev + 1)
+    }
 
     if (correct) {
       setScore(score + 1)
@@ -96,12 +121,15 @@ export default function SpellShoreGame() {
         selectedWord: word,
         correct,
         reactionTime,
+        ageGroup: currentAgeGroup,
       },
     ])
 
     // Move to next round after a short delay
     setTimeout(() => {
-      if (currentRound < totalRounds - 1) {
+      if (currentRound === 4 && shouldSwitchLevel) {
+        switchToEasierLevel()
+      } else if (currentRound < totalRounds - 1) {
         setCurrentRound(currentRound + 1)
         setupNewRound()
       } else {
@@ -140,7 +168,7 @@ export default function SpellShoreGame() {
         {!gameStarted ? (
           <div className="text-center space-y-6">
             <h1 className="text-3xl font-bold text-blue-800">Spell Shore</h1>
-            <p className="text-lg">
+            <p className="text-black">
               Welcome to Spell Shore! Choose the correctly spelled word from the options. Watch out for tricky
               spellings!
             </p>
@@ -188,7 +216,7 @@ export default function SpellShoreGame() {
             <Progress value={(currentRound / totalRounds) * 100} className="h-2" />
 
             <div className="text-center space-y-4">
-              <p className="text-lg">Which word is spelled correctly?</p>
+              <p className="text-black">Which word is spelled correctly?</p>
             </div>
 
             <div className="grid grid-cols-1 gap-4">

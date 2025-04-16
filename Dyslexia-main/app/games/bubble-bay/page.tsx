@@ -11,6 +11,7 @@ import { VolumeIcon as VolumeUp, Volume2Icon } from "lucide-react"
 import { saveGameData } from "@/lib/game-data"
 import { useSound } from "@/hooks/use-sound"
 import confetti from "canvas-confetti"
+import {UnderwaterBackground } from "@/components/underwater-background"
 
 // Letter pairs that are commonly confused by people with dyslexia
 const LETTER_PAIRS = [
@@ -272,6 +273,7 @@ class Bubble {
 }
 
 // Marine life class for background animations
+// Updated MarineLife class with fish emojis
 class MarineLife {
   x: number
   y: number
@@ -282,7 +284,8 @@ class MarineLife {
   wiggle: number
   wiggleSpeed: number
   wiggleAmount: number
-  image: HTMLImageElement | null
+  emoji: string
+  emojiSize: number
 
   constructor(canvas: HTMLCanvasElement, type: string) {
     this.type = type
@@ -290,9 +293,10 @@ class MarineLife {
     this.speed = 0.5 + Math.random() * 1.5
     this.direction = Math.random() > 0.5 ? 1 : -1
     this.wiggle = 0
-    this.wiggleSpeed = 0.02 + Math.random() * 0.04
+    this.wiggleSpeed = 0.01 + Math.random() * 0.04
     this.wiggleAmount = 5 + Math.random() * 10
-
+    this.emoji = ["🐠", "🐟", "🐡"][Math.floor(Math.random() * 3)] // Random fish emoji
+    this.emojiSize = 60 + Math.random() 
     // Position based on direction
     if (this.direction > 0) {
       this.x = -50
@@ -300,14 +304,6 @@ class MarineLife {
       this.x = canvas.width + 50
     }
     this.y = Math.random() * canvas.height
-
-    // Load image
-    this.image = null
-    const img = new Image()
-    img.src = `/placeholder.svg?height=50&width=100`
-    img.onload = () => {
-      this.image = img
-    }
   }
 
   update(canvas: HTMLCanvasElement, deltaTime: number) {
@@ -327,27 +323,40 @@ class MarineLife {
         this.x = canvas.width + 50
       }
       this.y = Math.random() * canvas.height
+      // Change emoji sometimes when fish reappears
+      if (Math.random() > 0.7) {
+        this.emoji = ["🐠", "🐟", "🐡" ][Math.floor(Math.random() * 3)]
+      }
       return true
     }
 
     return true
   }
-
   draw(ctx: CanvasRenderingContext2D) {
-    if (!this.image) return
-
-    ctx.save()
-    ctx.translate(this.x, this.y)
-    ctx.scale(this.direction * this.scale, this.scale)
-    ctx.rotate(Math.sin(this.wiggle) * 0.1)
-
-    // Draw marine life
-    ctx.drawImage(this.image, -50, -25, 100, 50)
-
-    ctx.restore()
+    ctx.save();
+  
+    // Set font and alignment before any transformation
+    ctx.font = `${this.emojiSize * this.scale}px serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+  
+    ctx.translate(this.x, this.y);
+  
+    // Flip if going left
+    if (this.direction >0) {
+      ctx.scale(-1, 1); // flip horizontally
+    }
+  
+    ctx.rotate(Math.sin(this.wiggle) * 0.2);
+  
+    // Since scale(-1,1) flips X, we need to draw at negative X if direction < 0
+    ctx.fillText(this.emoji, this.direction < 0 ? -0 : 0, 0);
+  
+    ctx.restore();
   }
+  
+  
 }
-
 export default function BubbleBayGame() {
   const router = useRouter()
   const [currentRound, setCurrentRound] = useState(0)
@@ -399,12 +408,12 @@ export default function BubbleBayGame() {
       audioRef.current.play().catch((e) => console.log("Audio autoplay prevented:", e))
     }
 
-    // Create marine life
-    const newMarineLife: MarineLife[] = []
-    for (let i = 0; i < 5; i++) {
-      newMarineLife.push(new MarineLife(canvas, "fish"))
-    }
-    marineLifeRef.current = newMarineLife
+    // In your useEffect where you create marine life:
+const newMarineLife: MarineLife[] = []
+for (let i = 0; i < 5; i++) {
+  newMarineLife.push(new MarineLife(canvas, "fish"))
+}
+marineLifeRef.current = newMarineLife
 
     // Animation loop
     let lastTime = 0
@@ -707,50 +716,16 @@ export default function BubbleBayGame() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-cyan-500 to-blue-900 flex flex-col items-center justify-center p-4 overflow-hidden relative">
-      {/* Animated background elements */}
-      <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
-        <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-blue-300/20 rounded-full blur-3xl animate-pulse"></div>
-        <div
-          className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-cyan-300/20 rounded-full blur-3xl animate-pulse"
-          style={{ animationDelay: "1s" }}
-        ></div>
+      
+     
 
-        {/* Floating seaweed */}
-        <div className="absolute bottom-0 left-10 w-20 h-40 bg-green-600/30 rounded-t-full animate-sway"></div>
-        <div
-          className="absolute bottom-0 left-40 w-16 h-32 bg-green-500/30 rounded-t-full animate-sway"
-          style={{ animationDelay: "0.5s" }}
-        ></div>
-        <div
-          className="absolute bottom-0 right-20 w-24 h-48 bg-green-700/30 rounded-t-full animate-sway"
-          style={{ animationDelay: "1s" }}
-        ></div>
+      <UnderwaterBackground />
 
-        {/* Coral */}
-        <div className="absolute bottom-0 left-1/4 w-32 h-24 bg-pink-500/20 rounded-t-lg animate-pulse"></div>
-        <div className="absolute bottom-0 right-1/4 w-40 h-32 bg-orange-500/20 rounded-t-lg animate-pulse"></div>
-
-        {/* Random bubbles */}
-        {Array.from({ length: 15 }).map((_, i) => (
-          <div
-            key={i}
-            className="absolute rounded-full bg-white/30 backdrop-blur-sm animate-bubble"
-            style={{
-              width: `${Math.random() * 20 + 10}px`,
-              height: `${Math.random() * 20 + 10}px`,
-              left: `${Math.random() * 100}%`,
-              bottom: `-50px`,
-              animationDuration: `${Math.random() * 10 + 10}s`,
-              animationDelay: `${Math.random() * 5}s`,
-            }}
-          />
-        ))}
-      </div>
 
       <Card className="max-w-2xl w-full border-4 border-cyan-300 bg-white/90 backdrop-blur-sm shadow-xl relative z-10">
         {!gameStarted ? (
           <div className="text-center space-y-6 p-6">
-            <h1 className="text-3xl font-bold text-blue-800">Bubble Bay</h1>
+            <h1 className="text-3xl font-bold text-blue-800">Bubble Bay Avishkar</h1>
             <div className="relative w-full max-w-md mx-auto aspect-video rounded-lg overflow-hidden shadow-lg mb-4">
               <div className="absolute inset-0 bg-gradient-to-r from-blue-400 to-cyan-300 flex items-center justify-center">
                 <img
@@ -884,7 +859,7 @@ export default function BubbleBayGame() {
             <Progress value={(currentRound / totalRounds) * 100} className="h-2" />
 
             <div className="text-center space-y-4">
-              <p className="text-lg">Tap the bubble with the letter:</p>
+              <p className={`text-lg text-black`}>Burst the bubble with the letter by taping on it:</p>
 
               <div className="flex justify-center items-center space-x-2">
                 <Button
@@ -895,9 +870,7 @@ export default function BubbleBayGame() {
                 >
                   <VolumeUp className="h-6 w-6 text-blue-600" />
                 </Button>
-                <span className="text-3xl font-bold text-blue-800 bg-blue-100 px-4 py-2 rounded-lg">
-                  {targetLetter}
-                </span>
+                
               </div>
             </div>
 
@@ -909,7 +882,7 @@ export default function BubbleBayGame() {
                   className={`absolute inset-0 flex items-center justify-center bg-${isCorrect ? "green" : "red"}-500/20 backdrop-blur-sm transition-all duration-300`}
                 >
                   <div
-                    className={`text-4xl font-bold text-${isCorrect ? "green" : "red"}-500 bg-white p-4 rounded-lg shadow-lg animate-bounce`}
+                    className={`text-4xl font-bold text-${isCorrect ? "green" : "red"}-500 bg-white text-black p-4 rounded-lg shadow-lg animate-bounce`}
                   >
                     {isCorrect ? "Correct! 🎉" : "Try Again! 🔄"}
                   </div>

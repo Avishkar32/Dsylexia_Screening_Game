@@ -105,12 +105,14 @@ export default function WordReefGame() {
       const marineLife = MARINE_LIFE.map((life) => ({
         x: Math.random() * canvas.width,
         y: Math.random() * canvas.height,
-        size: 20 + Math.random() * 30,
-        speedX: (Math.random() - 0.5) * 1,
-        speedY: (Math.random() - 0.5) * 0.5,
+        baseY: Math.random() * canvas.height,
+        amplitude: 0.5,
+        
+        
+        size: 80 + Math.random() * 10,
+        speedX: (Math.random() - 0.5) * 10,
+        speedY: (Math.random() - 0.5) * 20,
         emoji: life.emoji,
-        rotation: Math.random() * Math.PI * 2,
-        rotationSpeed: (Math.random() - 0.5) * 0.02,
       }))
 
       // Animation loop
@@ -124,8 +126,8 @@ export default function WordReefGame() {
         marineLife.forEach((life) => {
           // Update position
           life.x += life.speedX
-          life.y += life.speedY
-          life.rotation += life.rotationSpeed
+          life.y = life.baseY + Math.sin(Date.now() * 0.002 + life.x) * life.amplitude
+
 
           // Wrap around edges
           if (life.x < -50) life.x = canvas.width + 50
@@ -379,20 +381,24 @@ export default function WordReefGame() {
         ></div>
 
         {/* Random bubbles */}
-        {Array.from({ length: 15 }).map((_, i) => (
-          <div
-            key={i}
-            className="absolute rounded-full bg-white/30 backdrop-blur-sm animate-bubble"
-            style={{
-              width: `${Math.random() * 20 + 10}px`,
-              height: `${Math.random() * 20 + 10}px`,
-              left: `${Math.random() * 100}%`,
-              bottom: `-50px`,
-              animationDuration: `${Math.random() * 10 + 10}s`,
-              animationDelay: `${Math.random() * 5}s`,
-            }}
-          />
-        ))}
+        {Array.from({ length: 15 }).map((_, i) => {
+          const size = Math.random() * 30 + 20; // Larger bubbles (20-50px)
+          return (
+            <div
+              key={i}
+              className="absolute rounded-full bg-white/30 backdrop-blur-sm animate-bubble"
+              style={{
+                width: `${size}px`,
+                height: `${size}px`,
+                left: `${Math.random() * 100}%`,
+                bottom: `-50px`,
+                animationDuration: `${Math.random() * 10 + 10}s`,
+                animationDelay: `${Math.random() * 5}s`,
+                boxShadow: '0 0 10px rgba(255, 255, 255, 0.5)'
+              }}
+            />
+          )
+        })}
       </div>
 
       <Card className="max-w-2xl w-full border-4 border-cyan-300 bg-white/90 backdrop-blur-sm shadow-xl relative z-10">
@@ -436,7 +442,7 @@ export default function WordReefGame() {
                 </div>
               </div>
             </div>
-            <p className="text-lg">
+            <p className="text-black text-lg">
               Welcome to the Word Reef! Find the correct word among similar-looking words. You can click the sound
               button for a hint if you need help.
             </p>
@@ -524,10 +530,10 @@ export default function WordReefGame() {
             <Progress value={(currentRound / totalRounds) * 100} className="h-2" />
 
             <div className="text-center space-y-4">
-              <p className="text-lg">Find the correct word:</p>
+              <p className="text-black">Find the correct word:</p>
 
               <div className="flex justify-center items-center space-x-2">
-                <animated.span
+                {/* <animated.span
                   style={{
                     scale: targetSpring.scale,
                     boxShadow: targetSpring.glow.to((v) => `0 0 ${v * 10}px ${v * 5}px rgba(0, 150, 255, ${v * 0.3})`),
@@ -535,7 +541,7 @@ export default function WordReefGame() {
                   className="text-2xl font-bold text-blue-800 bg-blue-100 px-4 py-2 rounded-lg inline-block"
                 >
                   {targetWord}
-                </animated.span>
+                </animated.span> */}
                 <Button
                   variant="outline"
                   size="icon"

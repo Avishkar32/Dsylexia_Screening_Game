@@ -16,12 +16,12 @@ import confetti from "canvas-confetti"
 const SEA_ITEMS = [
   { id: 1, name: "Starfish", color: "bg-orange-400", emoji: "🌟" },
   { id: 2, name: "Shell", color: "bg-pink-300", emoji: "🐚" },
-  { id: 3, name: "Fish", color: "bg-blue-400", emoji: "🐟" },
-  { id: 4, name: "Coral", color: "bg-red-400", emoji: "🪸" },
+  { id: 3, name: "Fish", color: "bg-red-400", emoji: "🐟" },
+  { id: 4, name: "Shark", color: "bg-orange-400", emoji: "🦈" },
   { id: 5, name: "Seahorse", color: "bg-yellow-400", emoji: "🦄" },
   { id: 6, name: "Turtle", color: "bg-green-500", emoji: "🐢" },
   { id: 7, name: "Jellyfish", color: "bg-purple-400", emoji: "🪼" },
-  { id: 8, name: "Crab", color: "bg-red-600", emoji: "🦀" },
+  { id: 8, name: "Crab", color: "bg-blue-400", emoji: "🦀" },
 ]
 
 export default function MemoryCoveGame() {
@@ -40,6 +40,8 @@ export default function MemoryCoveGame() {
   const [isMuted, setIsMuted] = useState(false)
   const [draggedItem, setDraggedItem] = useState<number | null>(null)
   const [dropZoneItems, setDropZoneItems] = useState<number[]>([])
+  const [attempts, setAttempts] = useState(0)
+  const maxAttempts = 3
   const bubblesRef = useRef<any[]>([])
 
   const startTimeRef = useRef<number | null>(null)
@@ -53,7 +55,7 @@ export default function MemoryCoveGame() {
   // Animation for sequence presentation
   const [sequenceProps, sequenceApi] = useSpring(() => ({
     scale: 1,
-    config: { tension: 200, friction: 20 },
+    config: { tension: 300, friction: 10 }, // Adjusted for more bouncy effect
   }))
 
   // Animations for items
@@ -172,6 +174,7 @@ export default function MemoryCoveGame() {
   // Start a new level
   const startNewLevel = (lvl: number) => {
     setLevel(lvl)
+    setAttempts(0)
     levelStartTimeRef.current = Date.now()
     setDropZoneItems([])
 
@@ -193,6 +196,7 @@ export default function MemoryCoveGame() {
   const showSequence = async (seq: number[]) => {
     setIsShowingSequence(true)
     setIsPlayerTurn(false)
+    setDropZoneItems([]) // Clear any previous items
 
     // Show each item in sequence with delay
     for (let i = 0; i < seq.length; i++) {
@@ -201,14 +205,20 @@ export default function MemoryCoveGame() {
           setCurrentHighlight(seq[i])
           playSound("pop")
 
-          // Animate the highlighted item
-          sequenceApi.start({ scale: 1.2 })
+          // Enhanced animation with larger scale
+          sequenceApi.start({ 
+            scale: 1.5,
+            config: { tension: 300, friction: 10 }
+          })
           setTimeout(() => {
-            sequenceApi.start({ scale: 1 })
+            sequenceApi.start({ 
+              scale: 1,
+              config: { tension: 300, friction: 15 }
+            })
             setCurrentHighlight(null)
             resolve(null)
-          }, 600)
-        }, 800)
+          }, 800) // Increased duration to make it more visible
+        }, 1200) // Increased delay between items
       })
     }
 
@@ -341,10 +351,13 @@ export default function MemoryCoveGame() {
 
   // Handle incorrect sequence
   const handleIncorrectSequence = () => {
+    const newAttempts = attempts + 1
+    setAttempts(newAttempts)
+    
     // Calculate reaction time
     const reactionTime = levelStartTimeRef.current ? (Date.now() - levelStartTimeRef.current) / 1000 : 0
 
-    // Save level data
+    // Save level data with the mistake
     setGameData((prev) => [
       ...prev,
       {
@@ -353,16 +366,42 @@ export default function MemoryCoveGame() {
         correct: false,
         reactionTime,
         playerSequenceLength: playerSequence.length + 1,
+        attempt: newAttempts,
       },
     ])
 
     // Play error sound
     playSound("incorrect")
 
-    // Complete game with failure
-    setTimeout(() => {
-      completeGame(false)
-    }, 1000)
+    // Show error animation
+    confetti({
+      particleCount: 20,
+      spread: 50,
+      origin: { x: 0.5, y: 0.6 },
+      colors: ["#ef4444"],
+      gravity: 0.5,
+    })
+
+    if (newAttempts >= maxAttempts) {
+      // Move to next level after delay
+      setTimeout(() => {
+        if (level < maxLevel) {
+          setAttempts(0)
+          startNewLevel(level + 1)
+        } else {
+          completeGame(false)
+        }
+      }, 2000)
+    } else {
+      // Clear the drop zone and player sequence
+      setDropZoneItems([])
+      setPlayerSequence([])
+
+      // Show the sequence again after a short delay
+      setTimeout(() => {
+        showSequence(sequence)
+      }, 1500)
+    }
   }
 
   // Complete the game and save data
@@ -562,8 +601,20 @@ export default function MemoryCoveGame() {
           <div className="space-y-6 p-6">
             <div className="flex justify-between items-center">
               <h1 className="text-2xl font-bold text-blue-800">Memory Cove</h1>
-              <div className="text-sm text-blue-600 font-medium bg-blue-100 px-3 py-1 rounded-full">
-                Level {level} of {maxLevel}
+              <div className="flex items-center gap-4">
+                <div className="flex gap-1">
+                  {Array.from({ length: maxAttempts }).map((_, i) => (
+                    <div
+                      key={i}
+                      className={`w-3 h-3 rounded-full ${
+                        i < maxAttempts - attempts ? "bg-green-500" : "bg-gray-300"
+                      }`}
+                    />
+                  ))}
+                </div>
+                <div className="text-sm text-blue-600 font-medium bg-blue-100 px-3 py-1 rounded-full">
+                  Level {level} of {maxLevel}
+                </div>
               </div>
             </div>
 
@@ -573,11 +624,27 @@ export default function MemoryCoveGame() {
               {isShowingSequence ? (
                 <p className="text-lg font-medium text-blue-800 animate-pulse">Watch the sequence...</p>
               ) : isPlayerTurn ? (
-                <p className="text-lg font-medium text-blue-800">Your turn! Repeat the sequence.</p>
+                <p className="text-lg font-medium text-blue-800">
+                  Your turn! {playerSequence.length > 0 && playerSequence[playerSequence.length - 1] !== sequence[playerSequence.length - 1] 
+                    ? "That wasn't correct. Try again!" 
+                    : "Repeat the sequence."}
+                </p>
               ) : (
                 <p className="text-lg font-medium text-blue-800">Get ready...</p>
               )}
             </div>
+
+            {/* Show attempts remaining message */}
+            {attempts > 0 && attempts < maxAttempts && (
+              <div className="text-center text-amber-600 font-medium animate-bounce">
+                {maxAttempts - attempts} {maxAttempts - attempts === 1 ? 'try' : 'tries'} remaining!
+              </div>
+            )}
+            {attempts === maxAttempts && (
+              <div className="text-center text-blue-600 font-medium animate-pulse">
+                Moving to {level < maxLevel ? 'next level' : 'results'}...
+              </div>
+            )}
 
             {/* Drop zone for sequence */}
             <div
@@ -615,7 +682,7 @@ export default function MemoryCoveGame() {
                   className={`
                     aspect-square rounded-lg flex items-center justify-center text-white font-bold relative
                     ${item.color}
-                    ${currentHighlight === item.id ? "ring-4 ring-white scale-105" : ""}
+                    ${currentHighlight === item.id ? "ring-4 ring-yellow-400 ring-opacity-75 scale-110 shadow-lg shadow-yellow-400/50" : ""}
                     ${isPlayerTurn ? "hover:scale-105 transition-transform cursor-grab active:cursor-grabbing" : "opacity-90"}
                     touch-manipulation
                   `}
