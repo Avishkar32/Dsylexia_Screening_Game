@@ -417,6 +417,8 @@ export function UnderwaterBackground() {
 //         <div className="absolute bottom-0 right-1/2 w-40 h-32 bg-orange-500/20 rounded-t-lg animate-pulse"></div>
 
 
+
+
         {/* Improved bubbles */}
         {Array.from({ length: 15 }).map((_, i) => {
           const size = Math.random() * 30 + 20; // Larger bubbles (20-50px)

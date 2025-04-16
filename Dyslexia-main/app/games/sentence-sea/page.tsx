@@ -1,47 +1,13 @@
 "use client"
 
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { saveGameData } from "@/lib/game-data"
-
-// Sentences with words in correct order
-const SENTENCES = [
-  {
-    correct: ["The", "fish", "swims", "in", "the", "ocean"],
-    hint: "Action of a fish in water",
-  },
-  {
-    correct: ["Dolphins", "jump", "over", "the", "waves"],
-    hint: "What dolphins do above water",
-  },
-  {
-    correct: ["Crabs", "walk", "on", "the", "sandy", "beach"],
-    hint: "Where crabs move around",
-  },
-  {
-    correct: ["The", "turtle", "hides", "in", "its", "shell"],
-    hint: "Where a turtle goes for protection",
-  },
-  {
-    correct: ["Sharks", "have", "many", "sharp", "teeth"],
-    hint: "What sharks use to bite",
-  },
-  {
-    correct: ["Sailors", "navigate", "by", "the", "stars"],
-    hint: "How people find their way at sea",
-  },
-  {
-    correct: ["Whales", "sing", "beautiful", "ocean", "songs"],
-    hint: "What whales do to communicate",
-  },
-  {
-    correct: ["The", "treasure", "chest", "is", "buried", "deep"],
-    hint: "Where pirates hide valuable things",
-  },
-]
+import { UnderwaterBackground } from "@/components/underwater-background"
+import { SENTENCES_BY_AGE, getAgeGroup, getLowerAgeGroup } from "./sentence-sets"
 
 export default function SentenceSeaGame() {
   const router = useRouter()
@@ -58,9 +24,23 @@ export default function SentenceSeaGame() {
   const [gameData, setGameData] = useState<any[]>([])
   const [hint, setHint] = useState("")
   const [hintsUsed, setHintsUsed] = useState(0)
+  const [playerAge, setPlayerAge] = useState<number>(0)
+  const [currentAgeGroup, setCurrentAgeGroup] = useState<string>("")
+  const [wrongAnswers, setWrongAnswers] = useState(0)
+  const [needsEasierQuestions, setNeedsEasierQuestions] = useState(false)
+  const [hasTriedEasierLevel, setHasTriedEasierLevel] = useState(false)
 
   const startTimeRef = useRef<number | null>(null)
   const roundStartTimeRef = useRef<number | null>(null)
+
+  useEffect(() => {
+    const playerInfo = localStorage.getItem("playerInfo")
+    if (playerInfo) {
+      const { age } = JSON.parse(playerInfo)
+      setPlayerAge(age)
+      setCurrentAgeGroup(getAgeGroup(age))
+    }
+  }, [])
 
   // Start the game
   const startGame = () => {
@@ -75,12 +55,14 @@ export default function SentenceSeaGame() {
     setIsCorrect(null)
     setSelectedWords([])
 
-    // Get random sentence
+    const currentSentences = SENTENCES_BY_AGE[currentAgeGroup]
     const usedSentences = gameData.map((data) => data.sentence.join(" "))
-    const availableSentences = SENTENCES.filter((sentence) => !usedSentences.includes(sentence.correct.join(" ")))
+    const availableSentences = currentSentences.filter(
+      (sentence) => !usedSentences.includes(sentence.correct.join(" "))
+    )
 
     // If we've used all sentences, just pick randomly
-    const sentences = availableSentences.length > 0 ? availableSentences : SENTENCES
+    const sentences = availableSentences.length > 0 ? availableSentences : currentSentences
 
     const randomIndex = Math.floor(Math.random() * sentences.length)
     const sentence = sentences[randomIndex]
@@ -117,6 +99,10 @@ export default function SentenceSeaGame() {
     const correct = selectedWords.join(" ") === correctSentence.join(" ")
     setIsCorrect(correct)
 
+    if (!correct) {
+      setWrongAnswers((prev) => prev + 1)
+    }
+
     if (correct) {
       setScore(score + 1)
     }
@@ -139,11 +125,26 @@ export default function SentenceSeaGame() {
 
     // Move to next round after a short delay
     setTimeout(() => {
-      if (currentRound < totalRounds - 1) {
+      if (currentRound === totalRounds - 1) {
+        if (wrongAnswers >= Math.floor(totalRounds / 2) && !hasTriedEasierLevel) {
+          const easierGroup = getLowerAgeGroup(currentAgeGroup)
+          if (easierGroup) {
+            setCurrentAgeGroup(easierGroup)
+            setHasTriedEasierLevel(true)
+            setWrongAnswers(0)
+            setCurrentRound(0)
+            setScore(0)
+            setGameData([])
+            setupNewRound()
+          } else {
+            completeGame()
+          }
+        } else {
+          completeGame()
+        }
+      } else {
         setCurrentRound(currentRound + 1)
         setupNewRound()
-      } else {
-        completeGame()
       }
     }, 2000)
   }
@@ -180,11 +181,12 @@ export default function SentenceSeaGame() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-cyan-500 to-blue-900 flex flex-col items-center justify-center p-4">
+      <UnderwaterBackground />
       <Card className="max-w-2xl w-full border-4 border-cyan-300 bg-white/90 backdrop-blur-sm shadow-xl p-6">
         {!gameStarted ? (
           <div className="text-center space-y-6">
             <h1 className="text-3xl font-bold text-blue-800">Sentence Sea</h1>
-            <p className="text-lg">
+            <p className="text-black">
               Welcome to Sentence Sea! Arrange the words to form a correct sentence. You can use the hint button if you
               need help.
             </p>
@@ -232,7 +234,7 @@ export default function SentenceSeaGame() {
             <Progress value={(currentRound / totalRounds) * 100} className="h-2" />
 
             <div className="text-center space-y-2">
-              <p className="text-lg">Arrange the words to form a correct sentence:</p>
+              <p className="text-black">Arrange the words to form a correct sentence:</p>
 
               {hintsUsed > 0 && <p className="text-sm text-blue-600 italic">Hint: {hint}</p>}
             </div>

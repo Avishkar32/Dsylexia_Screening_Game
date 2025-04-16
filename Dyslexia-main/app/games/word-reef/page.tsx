@@ -11,6 +11,8 @@ import { useSound } from "@/hooks/use-sound"
 import { animated, useSpring, useSprings } from "@react-spring/web"
 import confetti from "canvas-confetti"
 
+import {UnderwaterBackground } from "@/components/underwater-background"
+
 // Word pairs that are commonly confused by people with dyslexia
 const WORD_PAIRS = [
   { target: "was", confusable: "saw" },
