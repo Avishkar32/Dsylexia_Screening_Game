@@ -8,6 +8,8 @@ import { Progress } from "@/components/ui/progress"
 import { saveGameData } from "@/lib/game-data"
 import { WORD_SETS_BY_AGE, getAgeGroup } from "./word-sets"
 
+import {UnderwaterBackground } from "@/components/underwater-background"
+
 export default function SpellShoreGame() {
   const router = useRouter()
   const [currentRound, setCurrentRound] = useState(0)
@@ -164,6 +166,7 @@ export default function SpellShoreGame() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-cyan-500 to-blue-900 flex flex-col items-center justify-center p-4">
+      <UnderwaterBackground/>
       <Card className="max-w-2xl w-full border-4 border-cyan-300 bg-white/90 backdrop-blur-sm shadow-xl p-6">
         {!gameStarted ? (
           <div className="text-center space-y-6">
